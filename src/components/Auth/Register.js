@@ -10,6 +10,7 @@ import {
 } from 'semantic-ui-react';
 import { Link } from 'react-router-dom';
 import firebase from '../../firebase';
+import md5 from 'md5';
 export class Register extends Component {
     constructor(props) {
         super(props);
@@ -19,7 +20,8 @@ export class Register extends Component {
             password: '',
             passwordConfirmation: '',
             errors: [],
-            loading: false
+            loading: false,
+            usersRef: firebase.database().ref('users')
         };
     };
 
@@ -69,7 +71,25 @@ export class Register extends Component {
                 .createUserWithEmailAndPassword(this.state.email, this.state.password)
                 .then(createdUser => {
                     console.log(createdUser);
-                    this.setState({ loading: false });
+                    createdUser.user
+                        .updateProfile({
+                            displayName: this.state.username,
+                            photoURL: `http://gravatar.com/avatar/${md5(
+                                createdUser.user.email
+                            )}?d=identicon`
+                        })
+                        .then(() => {
+                            this.saveUser(createdUser).then(() => {
+                                console.log("user saved");
+                            });
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            this.setState({
+                                errors: this.state.errors.concat(err),
+                                loading: false
+                            });
+                        });
                 })
                 .catch(err => {
                     console.error(err);
@@ -79,6 +99,13 @@ export class Register extends Component {
                     });
                 });
         }
+    };
+
+    saveUser = createdUser => {
+        return this.state.usersRef.child(createdUser.user.uid).set({
+            name: createdUser.user.displayName,
+            avatar: createdUser.user.photoURL
+        });
     };
 
     handleInputError = (errors, inputName) => {
@@ -92,8 +119,8 @@ export class Register extends Component {
         return (
             <Grid textAlign="center" verticalAlign="middle" className='app'>
                 <Grid.Column style={{ maxWidth: 450 }}>
-                    <Header as="h2" icon color="red" textAlign="center">
-                        <Icon name="puzzle piece" color="red" />
+                    <Header as="h1" icon color="teal" textAlign="center">
+                        <Icon name="puzzle piece" color="teal" />
             Register for Slack Chat
           </Header>
                     <Form onSubmit={this.handleSubmit} size="large">
@@ -143,7 +170,7 @@ export class Register extends Component {
                                 onChange={this.handleChange}
                                 type="password"
                             />
-                            <Button disabled={loading} className={loading ? 'loading' : ''} fluid size="large" color="red">Submit</Button>
+                            <Button disabled={loading} className={loading ? 'loading' : ''} fluid size="large" color="teal">Submit</Button>
                         </Segment>
                     </Form>
                     {errors.length > 0 && (
